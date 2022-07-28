@@ -46,7 +46,7 @@ class UserController extends Controller
         try {
             \DB::beginTransaction();
 
-            $this->userService->updateOrCreate(LazyCollection::make($data)->chunk(200));
+            $users = $this->userService->updateOrCreate(LazyCollection::make($data)->chunk(200));
 
             \DB::commit();
         } catch (\Throwable $e) {
@@ -55,7 +55,7 @@ class UserController extends Controller
             return $this->json->error($e->getMessage(), $e->getCode());
         }
 
-        return $this->json->response($data);
+        return $this->json->response($users);
     }
 
     /**

@@ -8,6 +8,7 @@ use Illuminate\Support\Enumerable;
 use App\Services\Images\UserImage;
 use App\Factories\UserFactory;
 
+use Illuminate\Support\Facades\Cache;
 use App\Models\{User, AkaLists, Address};
 
 class UserService extends BaseFactoryService
@@ -58,43 +59,51 @@ class UserService extends BaseFactoryService
     /**
      * @param \Illuminate\Support\Enumerable $data
      *
-     * @throws \Throwable
-     * @return void
+     * @return mixed
      */
-    public function updateOrCreate(Enumerable $data): void
+    public function updateOrCreate(Enumerable $data): mixed
     {
-        // todo: репозиторий, все дела + mass insert($model->attributesToArray()), чтобы запрос был меньше 90сек <3
-        $data->each(function (Enumerable $items) use (&$users) {
-            $items->each(function (UserImage $item) use (&$users) {
-                $user = User::query()->where('uid', $item->uid)->firstOrNew();
-                $user->uid = $item->uid;
-                $user->last_name = $item->lastName;
-                $user->type = $item->type;
-                $user->save();
-                foreach ($item->programList as $program) {
-                    $model = $user->programs()->where('name', $program)->firstOrNew();
-                    $model->name = $program;
-                    $user->programs()->save($model);
-                }
-                foreach ($item->akaList as $list) {
-                    $model = AkaLists::query()->where('uid', $item->uid)->firstOrNew();
-                    $model->uid = $list->uid;
-                    $model->type = $list->type;
-                    $model->category = $list->category;
-                    $model->name = $list->lastName;
-                    $user->akaLists()->save($model);
-                }
-                foreach ($item->addressList as $address) {
-                    $model = Address::query()->where('uid', $item->uid)->firstOrNew();
-                    $model->uid = $address->uid;
-                    $model->address1 = $address->address1;
-                    $model->city = $address->city;
-                    $model->country = $address->country;
-                    $model->postal_code = $address->country;
-                    $user->addresses()->save($model);
-                }
+        if (Cache::has('users')) {
+            return Cache::get('users');
+        }
+        Cache::rememberForever('users', function () use ($data) {
+            // todo: репозиторий, все дела + mass insert($model->attributesToArray()), чтобы запрос был меньше 90сек <3
+            $data->each(function (Enumerable $items) use (&$users) {
+                $items->each(function (UserImage $item) use (&$users) {
+                    $user = User::query()->where('uid', $item->uid)->firstOrNew();
+                    $user->uid = $item->uid;
+                    $user->last_name = $item->lastName;
+                    $user->type = $item->type;
+                    $user->save();
+                    foreach ($item->programList as $program) {
+                        $model = $user->programs()->where('name', $program)->firstOrNew();
+                        $model->name = $program;
+                        $user->programs()->save($model);
+                    }
+                    foreach ($item->akaList as $list) {
+                        $model = AkaLists::query()->where('uid', $item->uid)->firstOrNew();
+                        $model->uid = $list->uid;
+                        $model->type = $list->type;
+                        $model->category = $list->category;
+                        $model->name = $list->lastName;
+                        $user->akaLists()->save($model);
+                    }
+                    foreach ($item->addressList as $address) {
+                        $model = Address::query()->where('uid', $item->uid)->firstOrNew();
+                        $model->uid = $address->uid;
+                        $model->address1 = $address->address1;
+                        $model->city = $address->city;
+                        $model->country = $address->country;
+                        $model->postal_code = $address->country;
+                        $user->addresses()->save($model);
+                    }
+                });
             });
+
+            return $this->getUsers();
         });
         // User::query()->upsert([], [], []);
+
+        return Cache::get('users');
     }
 }
